@@ -1,0 +1,18 @@
+app:
+  name: "hr-helper"
+  graceful_shutdown_timeout: 10s
+
+http:
+  addr: "0.0.0.0:8086"
+
+postgres:
+  host: "rc1d-mhk3cqemvsff343j.mdb.yandexcloud.net"
+  port: "6432"
+  db: "hr-helper"
+  ssl: "verify-full"
+  tls_server_name: "c-c9q5761n664cbgcoc506.rw.mdb.yandexcloud.net"
+
+s3:
+  endpoint: "storage.yandexcloud.net"
+  resume_bucket: "hr-helper-resume"
+  secure: true

@@ -1,0 +1,19 @@
+### Send POST request with json body
+POST http://localhost:8086/api/v1/screening/process
+Content-Type: application/json
+
+{
+  "candidate_id": 200,
+  "vacancy_id": "a8f53744-80f3-4ced-9d1f-4b99d74387c9"
+}
+
+### Send POST request with json body
+POST http://localhost:8086/api/v1/vacancy
+Content-Type: application/json
+
+{
+  "id": "a8f53744-80f3-4ced-9d1f-4b99d74387c9",
+  "title": "Kekke ladfadsf",
+  "key_requirements": ["rot_", "ipal"]
+}
+

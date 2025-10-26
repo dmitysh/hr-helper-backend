@@ -1,0 +1,8 @@
+services:
+  hr-helper:
+    container_name: hr-helper
+    build: .
+    env_file: prod.env
+    restart: on-failure
+    ports:
+      - "8086:8086"
