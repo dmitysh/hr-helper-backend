@@ -17,24 +17,21 @@ import (
 	"hr-helper/internal/inerrors"
 	"hr-helper/internal/pkg/houston/loggy"
 	"hr-helper/internal/service/candidate"
-	"hr-helper/internal/service/interview"
 	"hr-helper/internal/service/vacancy"
 )
 
 type Server struct {
 	httpServer       *http.Server
 	candidateService *candidate.Service
-	interviewService *interview.Service
 	vacancyService   *vacancy.Service
 }
 
-func NewServer(addr string, candidateService *candidate.Service, interviewService *interview.Service, vacancyService *vacancy.Service) *Server {
+func NewServer(addr string, candidateService *candidate.Service, vacancyService *vacancy.Service) *Server {
 	s := &Server{
 		httpServer: &http.Server{
 			Addr: addr,
 		},
 		candidateService: candidateService,
-		interviewService: interviewService,
 		vacancyService:   vacancyService,
 	}
 	s.initHandlers()
@@ -50,7 +47,6 @@ func (s *Server) initHandlers() {
 	r.Post("/api/v1/screening/process", s.processResume)
 	r.Get("/api/v1/screening/result/{candidate-id}/{vacancy-id}", s.getScreeningResult)
 	r.Get("/api/v1/candidates/by-tg-id/{telegram-id}", s.getCandidateByTelegramID)
-	r.Post("/api/v1/question", s.createQuestion)
 	r.Get("/api/v1/questions/{vacancy-id}", s.getQuestionsByVacancyID)
 	r.Post("/api/v1/answer", s.createAnswer)
 	r.Post("/api/v1/vacancy", s.createVacancy)
@@ -81,29 +77,6 @@ func (s *Server) createCandidate(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *Server) createQuestion(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	var in dto_models.CreateQuestionRequest
-	err := json.NewDecoder(r.Body).Decode(&in)
-	if err != nil {
-		httpErrorf(w, http.StatusBadRequest, "invalid JSON: %v", err.Error())
-		return
-	}
-
-	id, err := s.interviewService.CreateQuestion(ctx, in)
-	if err != nil {
-		httpErrorf(w, http.StatusInternalServerError, "can't handle creation: %v", err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(map[string]any{
-		"id": id,
-	})
-}
-
 func (s *Server) createVacancy(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -114,7 +87,7 @@ func (s *Server) createVacancy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := s.vacancyService.Create(ctx, in)
+	id, err := s.vacancyService.CreateVacancy(ctx, in)
 	if err != nil {
 		httpErrorf(w, http.StatusInternalServerError, "can't handle creation: %v", err)
 		return
@@ -137,7 +110,7 @@ func (s *Server) createAnswer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, err := s.interviewService.CreateAnswer(ctx, in)
+	id, err := s.vacancyService.CreateAnswer(ctx, in)
 	if err != nil {
 		httpErrorf(w, http.StatusInternalServerError, "can't handle creation: %v", err)
 		return
@@ -215,7 +188,7 @@ func (s *Server) getQuestionsByVacancyID(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	questions, err := s.interviewService.GetQuestionsByVacancyID(ctx, vacancyID)
+	questions, err := s.vacancyService.GetQuestionsByVacancyID(ctx, vacancyID)
 	if err != nil {
 		httpErrorf(w, http.StatusInternalServerError, "can't handle get: %v", err)
 		return

@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"os"
 
@@ -21,7 +20,6 @@ import (
 	"hr-helper/internal/pkg/houston/loggy"
 	"hr-helper/internal/pkg/houston/secret"
 	"hr-helper/internal/service/candidate"
-	"hr-helper/internal/service/interview"
 	"hr-helper/internal/service/vacancy"
 )
 
@@ -59,21 +57,14 @@ func (a *App) Run(ctx context.Context) {
 				"",
 			),
 			Secure: config.Bool("s3.secure"),
-			Region: "ru-central1",
 		},
 	)
 	if err != nil {
 		loggy.Fatalf("can't init minio client: %v", err)
 	}
 
-	_, err = minioClient.ListBuckets(context.TODO())
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	resumeStorage := objstorage.NewResumeStorage(config.String("s3.resume_bucket"), minioClient)
 	candidateStorage := repository.NewCandidateRepository(pgPool)
-	interviewStorage := repository.NewInterviewRepository(pgPool)
 	vacancyStorage := repository.NewVacancyRepository(pgPool)
 
 	yandexLLM := llm.NewYandex(llm.YandexConfig{
@@ -82,13 +73,11 @@ func (a *App) Run(ctx context.Context) {
 	})
 
 	candidateService := candidate.NewService(candidateStorage, resumeStorage, vacancyStorage, yandexLLM)
-	interviewService := interview.NewService(interviewStorage, yandexLLM)
-	vacancyService := vacancy.NewService(vacancyStorage)
+	vacancyService := vacancy.NewService(vacancyStorage, yandexLLM)
 
 	srv := httpapi.NewServer(
 		config.String("http.addr"),
 		candidateService,
-		interviewService,
 		vacancyService,
 	)
 	a.runHTTPServer(srv)

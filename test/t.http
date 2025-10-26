@@ -1,4 +1,4 @@
-### Send POST request with json body
+### process resume
 POST http://localhost:8086/api/v1/screening/process
 Content-Type: application/json
 
@@ -7,13 +7,28 @@ Content-Type: application/json
   "vacancy_id": "a8f53744-80f3-4ced-9d1f-4b99d74387c9"
 }
 
-### Send POST request with json body
+### create vacancy
 POST http://localhost:8086/api/v1/vacancy
 Content-Type: application/json
 
 {
-  "id": "a8f53744-80f3-4ced-9d1f-4b99d74387c9",
-  "title": "Kekke ladfadsf",
-  "key_requirements": ["rot_", "ipal"]
+  "id": "1e3f7bd0-5230-49bf-8113-9ec4464a6c08",
+  "title": "kek",
+  "key_requirements": [
+    "rot_",
+    "ipal"
+  ],
+  "questions": [
+    {
+      "content": "1",
+      "reference": "2",
+      "time_limit": 30
+    },
+    {
+      "content": "2",
+      "reference": "3",
+      "time_limit": 45
+    }
+  ]
 }
 

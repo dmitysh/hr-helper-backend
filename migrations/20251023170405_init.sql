@@ -44,7 +44,7 @@ CREATE UNIQUE INDEX resume_screening_candidate_id_vacancy_id_unique_idx ON resum
 CREATE TABLE question
 (
     id         SERIAL PRIMARY KEY,
-    vacancy_id BIGINT,
+    vacancy_id UUID,
     content    TEXT,
     reference  TEXT,
     time_limit SMALLINT,
