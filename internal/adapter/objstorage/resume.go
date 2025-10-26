@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
@@ -47,4 +48,15 @@ func (s *ResumeStorage) Download(ctx context.Context, candidateID int64, vacancy
 	}
 
 	return buf.Bytes(), nil
+}
+
+func (s *ResumeStorage) GetPresignedURL(ctx context.Context, candidateID int64, vacancyID uuid.UUID) (string, error) {
+	key := fmt.Sprintf("%d/%s", candidateID, vacancyID)
+
+	presignedURL, err := s.client.PresignedGetObject(ctx, s.bucket, key, time.Minute*20, nil)
+	if err != nil {
+		return "", fmt.Errorf("can't presign object: %w", err)
+	}
+
+	return presignedURL.String(), nil
 }

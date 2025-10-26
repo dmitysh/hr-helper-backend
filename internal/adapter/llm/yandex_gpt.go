@@ -52,11 +52,11 @@ type YandexConfig struct {
 }
 
 const (
-	baseScoreResumePrompt = `Оцени резюме кандидата: опиши кандидата в общем, и дай ему оценку по 100-бальной шкале, 
+	baseScoreResumePrompt = `Оцени резюме кандидата, проходящего на вакансию %s: опиши кандидата в общем, и дай ему оценку по 100-бальной шкале, 
 где 100 - означает отличный кандидат подходящий идеально, 0 - кандидат не подходит под большинство критериев. Подойди к оценке комплексно.
 Самое важное - это учесть в оценке требуемые для вакансии навыки и качества кандидата, вот их список: %s.
 Твой ответ обязательно должен представлять собой JSON с двумя полями: {\"feedback\": \"<общее_описание, string>\", \"score\": \"<оценка, int>\"}.
-Резюме кандидата (base64): %s`
+Резюме кандидата: %s`
 
 	baseScoreQuestionPrompt = `Оцени ответ кандидата: дай ему оценку по 100-бальной шкале, 
 где 100 - означает отличный ответ, полностью соответствующий референсному ответу, 0 - крайне плохой ответ, не соответсвующий ни референсу, ни действительности. Подойди к оценке комплексно.
@@ -76,21 +76,22 @@ func NewYandex(cfg YandexConfig) *Yandex {
 	}
 }
 
-func (y *Yandex) ScoreResume(ctx context.Context, resumeBase64 string, vacancy entity.Vacancy) (service_models.ResumeScreeningResult, error) {
+func (y *Yandex) ScoreResume(ctx context.Context, resumeText string, vacancy entity.Vacancy) (service_models.ResumeScreeningResult, error) {
 	var res service_models.ResumeScreeningResult
+
+	msgs := []Message{
+		{Role: "system", Text: "Ты HR-специалист, проводящий скрининг резюме кандидатов"},
+		{Role: "user", Text: fmt.Sprintf(baseScoreResumePrompt, vacancy.Title, strings.Join(vacancy.KeyRequirements, ","), resumeText)},
+	}
 
 	err := retry.Do(
 		func() error {
-			resp, err := y.doRequest(ctx, []Message{
-				{Role: "system", Text: "Ты HR-специалист, проводящий скрининг резюме кандидатов"},
-				{Role: "user", Text: fmt.Sprintf(baseScoreResumePrompt, strings.Join(vacancy.KeyRequirements, ","), resumeBase64)},
-			})
+			resp, err := y.doRequest(ctx, msgs)
 			if err != nil {
 				return fmt.Errorf("can't do llm request: %w", err)
 			}
 
 			resp = strings.Trim(resp, "`\n")
-
 			err = json.Unmarshal([]byte(resp), &res)
 			if err != nil {
 				return fmt.Errorf("can't unmarshal result: %w", err)

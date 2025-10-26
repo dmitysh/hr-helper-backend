@@ -72,7 +72,7 @@ func (a *App) Run(ctx context.Context) {
 		FolderID: secret.GetString("YANDEX_FOLDER_ID"),
 	})
 
-	candidateService := candidate.NewService(candidateStorage, resumeStorage, vacancyStorage, yandexLLM)
+	candidateService := candidate.NewService(config.String("tika.url"), candidateStorage, resumeStorage, vacancyStorage, yandexLLM)
 	vacancyService := vacancy.NewService(vacancyStorage, yandexLLM)
 
 	srv := httpapi.NewServer(

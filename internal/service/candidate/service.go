@@ -1,9 +1,11 @@
 package candidate
 
 import (
+	"bytes"
 	"context"
-	"encoding/base64"
 	"fmt"
+	"io"
+	"net/http"
 
 	"github.com/google/uuid"
 
@@ -29,17 +31,21 @@ type LLMClient interface {
 
 type ResumeStorage interface {
 	Download(ctx context.Context, candidateID int64, vacancyID uuid.UUID) ([]byte, error)
+	GetPresignedURL(ctx context.Context, candidateID int64, vacancyID uuid.UUID) (string, error)
 }
 
 type Service struct {
+	tikaURL string
+
 	store         Storage
 	llmClient     LLMClient
 	vacancyStore  VacancyStorage
 	resumeStorage ResumeStorage
 }
 
-func NewService(store Storage, resumeStorage ResumeStorage, vacancyStorage VacancyStorage, llmClient LLMClient) *Service {
+func NewService(tikaURL string, store Storage, resumeStorage ResumeStorage, vacancyStorage VacancyStorage, llmClient LLMClient) *Service {
 	return &Service{
+		tikaURL:       tikaURL,
 		store:         store,
 		resumeStorage: resumeStorage,
 		vacancyStore:  vacancyStorage,
@@ -66,8 +72,12 @@ func (s *Service) ScoreCandidateResume(ctx context.Context, req dto_models.Proce
 		return fmt.Errorf("can't download resume: %w", err)
 	}
 
-	resumeB64 := base64.StdEncoding.EncodeToString(resumeBytes)
-	scoringResult, err := s.llmClient.ScoreResume(ctx, resumeB64, vacancy)
+	resumeText, err := s.extractTextFromPDF(resumeBytes)
+	if err != nil {
+		return fmt.Errorf("can't extract text from resume: %w", err)
+	}
+
+	scoringResult, err := s.llmClient.ScoreResume(ctx, resumeText, vacancy)
 	if err != nil {
 		return fmt.Errorf("can't score resume via llm: %w", err)
 	}
@@ -80,6 +90,28 @@ func (s *Service) ScoreCandidateResume(ctx context.Context, req dto_models.Proce
 	return nil
 }
 
+func (s *Service) extractTextFromPDF(pdfData []byte) (string, error) {
+	req, err := http.NewRequest("PUT", s.tikaURL+"/tika", bytes.NewReader(pdfData))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/pdf")
+	req.Header.Set("Accept", "text/plain")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	return string(body), nil
+}
 func (s *Service) GetResumeScreening(ctx context.Context, candidateID int64, vacancyID uuid.UUID) (entity.ResumeScreening, error) {
 	return s.store.GetResumeScreening(ctx, candidateID, vacancyID)
 }

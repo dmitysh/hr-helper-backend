@@ -16,3 +16,7 @@ s3:
   endpoint: "storage.yandexcloud.net"
   resume_bucket: "hr-helper-resume"
   secure: true
+
+tika:
+  url: "http://tika:9998"
+

@@ -4,5 +4,11 @@ services:
     build: .
     env_file: prod.env
     restart: on-failure
+    depends_on:
+      - tika
     ports:
       - "8086:8086"
+
+  tika:
+    image: apache/tika:latest
+    restart: on-failure

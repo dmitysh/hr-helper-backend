@@ -3,8 +3,8 @@ POST http://localhost:8086/api/v1/screening/process
 Content-Type: application/json
 
 {
-  "candidate_id": 200,
-  "vacancy_id": "a8f53744-80f3-4ced-9d1f-4b99d74387c9"
+  "candidate_id": 444,
+  "vacancy_id": "1e3f7bd0-5230-49bf-8113-9ec4564a6c08"
 }
 
 ### create vacancy
@@ -12,11 +12,12 @@ POST http://localhost:8086/api/v1/vacancy
 Content-Type: application/json
 
 {
-  "id": "1e3f7bd0-5230-49bf-8113-9ec4464a6c08",
-  "title": "kek",
+  "id": "1e3f7bd0-5230-49bf-8113-9ec4564a6c08",
+  "title": "React-разработчик",
   "key_requirements": [
-    "rot_",
-    "ipal"
+    "React",
+    "Javascript",
+    "Soft-skills"
   ],
   "questions": [
     {
