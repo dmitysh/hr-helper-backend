@@ -33,3 +33,15 @@ Content-Type: application/json
   ]
 }
 
+### create answer
+POST http://localhost:8086/api/v1/answer
+Content-Type: application/json
+
+{
+  "candidate_id": 6,
+  "question_id": 1,
+  "content": "kek",
+  "time_taken": 30
+}
+
+

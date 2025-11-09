@@ -20,6 +20,8 @@ CREATE TABLE candidate_vacancy_meta
     updated_at   TIMESTAMP WITH TIME ZONE
 );
 
+CREATE UNIQUE INDEX candidate_vacancy_meta_candidate_id_vacancy_id_unique_idx ON candidate_vacancy_meta (candidate_id, vacancy_id);
+
 CREATE TABLE vacancy
 (
     id               UUID PRIMARY KEY,

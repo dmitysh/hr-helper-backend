@@ -7,13 +7,26 @@ import (
 )
 
 type Candidate struct {
-	ID               int64
-	TelegramID       int64
-	TelegramUsername string
-	FullName         string
-	Phone            string
-	City             string
-	CreatedAt        time.Time
+	ID         int64     `db:"id"`
+	TelegramID int64     `db:"telegram_id"`
+	FullName   string    `db:"full_name"`
+	Phone      string    `db:"phone"`
+	City       string    `db:"city"`
+	CreatedAt  time.Time `db:"created_at"`
+}
+
+type CandidateDetail struct {
+	Candidate               Candidate
+	CandidateVacancyDetails []CandidateVacancyDetail
+}
+
+type CandidateVacancyDetail struct {
+	ID              uuid.UUID
+	Title           string
+	ResumeScreening ResumeScreening
+	Questions       []Question
+	Answers         []Answer
+	CreatedAt       time.Time
 }
 
 type ResumeScreening struct {

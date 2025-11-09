@@ -12,6 +12,7 @@ import (
 	"github.com/avast/retry-go"
 
 	"hr-helper/internal/entity"
+	"hr-helper/internal/pkg/houston/loggy"
 	"hr-helper/internal/service_models"
 )
 
@@ -55,12 +56,12 @@ const (
 	baseScoreResumePrompt = `Оцени резюме кандидата, проходящего на вакансию %s: опиши кандидата в общем, и дай ему оценку по 100-бальной шкале, 
 где 100 - означает отличный кандидат подходящий идеально, 0 - кандидат не подходит под большинство критериев. Подойди к оценке комплексно.
 Самое важное - это учесть в оценке требуемые для вакансии навыки и качества кандидата, вот их список: %s.
-Твой ответ обязательно должен представлять собой JSON с двумя полями: {\"feedback\": \"<общее_описание, string>\", \"score\": \"<оценка, int>\"}.
+Твой ответ обязательно должен представлять собой валидный JSON с двумя полями: {\"feedback\": \"<общее_описание, string>\", \"score\": <оценка, int>}.
 Резюме кандидата: %s`
 
 	baseScoreQuestionPrompt = `Оцени ответ кандидата: дай ему оценку по 100-бальной шкале, 
 где 100 - означает отличный ответ, полностью соответствующий референсному ответу, 0 - крайне плохой ответ, не соответсвующий ни референсу, ни действительности. Подойди к оценке комплексно.
-Твой ответ обязательно должен представлять собой JSON с одним полями: {\"score\": \"<оценка, int>\"}.
+Твой ответ обязательно должен представлять собой валидный JSON с одним полем: {\"score\": <оценка, int>}.
 Ответ кандидата: %s, референсный ответ: %s`
 )
 
@@ -92,6 +93,8 @@ func (y *Yandex) ScoreResume(ctx context.Context, resumeText string, vacancy ent
 			}
 
 			resp = strings.Trim(resp, "`\n")
+			loggy.Infoln(resp)
+
 			err = json.Unmarshal([]byte(resp), &res)
 			if err != nil {
 				return fmt.Errorf("can't unmarshal result: %w", err)
@@ -124,6 +127,7 @@ func (y *Yandex) ScoreAnswer(ctx context.Context, answer string, reference strin
 			}
 
 			resp = strings.Trim(resp, "`\n")
+			loggy.Infoln(resp)
 
 			err = json.Unmarshal([]byte(resp), &res)
 			if err != nil {

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -156,7 +157,7 @@ created_at
 
 func (r *VacancyRepository) CreateAnswer(ctx context.Context, answer service_models.ScoredAnswer) (int64, error) {
 	const q = `
-		INSERT INTO question (
+		INSERT INTO answer (
 candidate_id,
 question_id,
 content,
@@ -207,4 +208,159 @@ created_at
 	}
 
 	return questions, nil
+}
+
+func (r *VacancyRepository) GetAnswers(ctx context.Context, candidateID int64, vacancyID uuid.UUID) ([]entity.Answer, error) {
+	const q = `
+		SELECT
+answer.id,
+answer.candidate_id,
+answer.question_id,
+answer.content,
+answer.score,
+answer.time_taken,
+answer.created_at
+          FROM answer 
+          JOIN question 
+            ON answer.question_id = question.id
+		 WHERE candidate_id = $1
+		   AND question.vacancy_id = $2
+         `
+
+	rows, err := r.db.Query(ctx, q, candidateID, vacancyID)
+	if err != nil {
+		return nil, fmt.Errorf("can't query: %w", err)
+	}
+
+	answers, err := pgx.CollectRows(rows, pgx.RowToStructByName[entity.Answer])
+	if err != nil {
+		return nil, fmt.Errorf("can't collect rows: %w", err)
+	}
+
+	return answers, nil
+}
+
+func (r *VacancyRepository) UpdateInterviewResult(ctx context.Context, candidateID int64, vacancyID uuid.UUID, result service_models.InterviewResult) error {
+	const upsertMetaQuery = `
+		INSERT INTO candidate_vacancy_meta (
+candidate_id,
+vacancy_id,
+interview_score,		                                    
+status,      
+updated_at
+)
+		VALUES ($1, $2, $3, $4, now())
+   ON CONFLICT (candidate_id, vacancy_id)
+	 DO UPDATE
+		   SET 
+interview_score = EXCLUDED.interview_score,
+status          = EXCLUDED.status,
+updated_at      = now();`
+
+	_, err := r.db.Exec(ctx, upsertMetaQuery,
+		candidateID,
+		vacancyID,
+		result.Score,
+		result.Status,
+	)
+	if err != nil {
+		return fmt.Errorf("can't exec query: %w", err)
+	}
+
+	return nil
+}
+
+func (r *VacancyRepository) GetVacanciesWithQuestions(ctx context.Context) ([]entity.VacancyWithQuestion, error) {
+	const q = `
+		SELECT
+v.id,
+v.title,
+v.key_requirements,
+v.created_at,
+COALESCE(
+json_agg(
+	jsonb_build_object(
+		'id', q.id,
+		'vacancy_id', q.vacancy_id,
+		'content', q.content,
+		'reference', q.reference,
+		'time_limit', q.time_limit,
+		'position', q.position,
+		'created_at', q.created_at
+	) ORDER BY q.position),
+	'[]'::json
+) AS questions
+     FROM vacancy v
+LEFT JOIN question q ON q.vacancy_id = v.id
+ GROUP BY v.id, v.title, v.key_requirements, v.created_at
+ ORDER BY v.created_at DESC`
+
+	var vacancies []entity.VacancyWithQuestion
+	rows, err := r.db.Query(ctx, q)
+	if err != nil {
+		return nil, fmt.Errorf("can't exec query: %w", err)
+	}
+
+	for rows.Next() {
+		var v entity.VacancyWithQuestion
+		var questionsJSON []byte
+		err = rows.Scan(&v.ID, &v.Title, &v.KeyRequirements, &v.CreatedAt, &questionsJSON)
+		if err != nil {
+			return nil, fmt.Errorf("can't scan vacancy: %w", err)
+		}
+		err = json.Unmarshal(questionsJSON, &v.Questions)
+		if err != nil {
+			return nil, fmt.Errorf("can't unmarshal questions: %w", err)
+		}
+
+		vacancies = append(vacancies, v)
+	}
+
+	return vacancies, nil
+}
+
+func (r *VacancyRepository) GetVacancyWithQuestions(ctx context.Context, vacancyID uuid.UUID) (entity.VacancyWithQuestion, error) {
+	const q = `
+		SELECT
+v.id,
+v.title,
+v.key_requirements,
+v.created_at,
+COALESCE(
+json_agg(
+	jsonb_build_object(
+		'id', q.id,
+		'vacancy_id', q.vacancy_id,
+		'content', q.content,
+		'reference', q.reference,
+		'time_limit', q.time_limit,
+		'position', q.position,
+		'created_at', q.created_at
+	) ORDER BY q.position),
+	'[]'::json
+) AS questions
+     FROM vacancy v
+LEFT JOIN question q ON q.vacancy_id = v.id
+  WHERE v.id = $1
+ GROUP BY v.id, v.title, v.key_requirements, v.created_at
+ ORDER BY v.created_at DESC`
+
+	row := r.db.QueryRow(ctx, q, vacancyID)
+
+	var v entity.VacancyWithQuestion
+	var questionsJSON []byte
+	err := row.Scan(&v.ID, &v.Title, &v.KeyRequirements, &v.CreatedAt, &questionsJSON)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return entity.VacancyWithQuestion{}, inerrors.ErrNotFound
+	}
+
+	if err != nil {
+		return entity.VacancyWithQuestion{}, fmt.Errorf("can't scan vacancy: %w", err)
+	}
+	err = json.Unmarshal(questionsJSON, &v.Questions)
+	if err != nil {
+		return entity.VacancyWithQuestion{}, fmt.Errorf("can't unmarshal questions: %w", err)
+	}
+
+	return v, nil
 }

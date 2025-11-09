@@ -14,11 +14,20 @@ import (
 	"hr-helper/internal/service_models"
 )
 
+const (
+	minResumeScore = 75
+)
+
 type Storage interface {
 	Create(ctx context.Context, candidate dto_models.CreateCandidateRequest) (int64, error)
 	GetByTelegramID(ctx context.Context, telegramID int64) (entity.Candidate, error)
-	UpdateScreeningResult(ctx context.Context, candidateID int64, vacancyID uuid.UUID, result service_models.ResumeScreeningResult) error
+	UpdateScreeningResult(ctx context.Context, candidateID int64, vacancyID uuid.UUID, result service_models.ResumeScreeningResultWithStatus) error
 	GetResumeScreening(ctx context.Context, candidateID int64, vacancyID uuid.UUID) (entity.ResumeScreening, error)
+	GetMeta(ctx context.Context, candidateID int64, vacancyID uuid.UUID) (entity.Meta, error)
+	GetCandidateVacancyInfos(ctx context.Context) ([]entity.CandidateVacancyInfo, error)
+	GetCandidateVacancyInfo(ctx context.Context, candidateID int64, vacancyID uuid.UUID) (entity.CandidateVacancyInfo, error)
+	GetCandidateAnswers(ctx context.Context, candidateID int64, vacancyID uuid.UUID) ([]entity.CandidateQuestionAnswer, error)
+	Delete(ctx context.Context, candidateID int64) error
 }
 
 type VacancyStorage interface {
@@ -57,8 +66,16 @@ func (s *Service) Create(ctx context.Context, candidate dto_models.CreateCandida
 	return s.store.Create(ctx, candidate)
 }
 
+func (s *Service) Delete(ctx context.Context, candidateID int64) error {
+	return s.store.Delete(ctx, candidateID)
+}
+
 func (s *Service) GetByTelegramID(ctx context.Context, telegramID int64) (entity.Candidate, error) {
 	return s.store.GetByTelegramID(ctx, telegramID)
+}
+
+func (s *Service) GetCandidateVacancyInfos(ctx context.Context) ([]entity.CandidateVacancyInfo, error) {
+	return s.store.GetCandidateVacancyInfos(ctx)
 }
 
 func (s *Service) ScoreCandidateResume(ctx context.Context, req dto_models.ProcessResumeRequest) error {
@@ -82,7 +99,12 @@ func (s *Service) ScoreCandidateResume(ctx context.Context, req dto_models.Proce
 		return fmt.Errorf("can't score resume via llm: %w", err)
 	}
 
-	err = s.store.UpdateScreeningResult(ctx, req.CandidateID, req.VacancyID, scoringResult)
+	scoringResultWithStatus := service_models.ResumeScreeningResultWithStatus{
+		ResumeScreeningResult: scoringResult,
+		Status:                s.checkScreeningScore(scoringResult.Score),
+	}
+
+	err = s.store.UpdateScreeningResult(ctx, req.CandidateID, req.VacancyID, scoringResultWithStatus)
 	if err != nil {
 		return fmt.Errorf("can't update scoring results: %w", err)
 	}
@@ -112,6 +134,27 @@ func (s *Service) extractTextFromPDF(pdfData []byte) (string, error) {
 
 	return string(body), nil
 }
+
+func (s *Service) checkScreeningScore(score int) string {
+	if score >= minResumeScore {
+		return entity.CandidateVacancyStatusScreeningOk
+	}
+
+	return entity.CandidateVacancyStatusScreeningFailed
+}
+
 func (s *Service) GetResumeScreening(ctx context.Context, candidateID int64, vacancyID uuid.UUID) (entity.ResumeScreening, error) {
 	return s.store.GetResumeScreening(ctx, candidateID, vacancyID)
+}
+
+func (s *Service) GetMeta(ctx context.Context, candidateID int64, vacancyID uuid.UUID) (entity.Meta, error) {
+	return s.store.GetMeta(ctx, candidateID, vacancyID)
+}
+
+func (s *Service) GetCandidateVacancyInfo(ctx context.Context, candidateID int64, vacancyID uuid.UUID) (entity.CandidateVacancyInfo, error) {
+	return s.store.GetCandidateVacancyInfo(ctx, candidateID, vacancyID)
+}
+
+func (s *Service) GetCandidateAnswers(ctx context.Context, candidateID int64, vacancyID uuid.UUID) ([]entity.CandidateQuestionAnswer, error) {
+	return s.store.GetCandidateAnswers(ctx, candidateID, vacancyID)
 }
