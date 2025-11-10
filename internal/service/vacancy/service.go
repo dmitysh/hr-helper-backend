@@ -25,6 +25,7 @@ type Storage interface {
 	GetVacanciesWithQuestions(ctx context.Context) ([]entity.VacancyWithQuestion, error)
 	GetVacancyWithQuestions(ctx context.Context, vacancyID uuid.UUID) (entity.VacancyWithQuestion, error)
 	UpdateInterviewResult(ctx context.Context, candidateID int64, vacancyID uuid.UUID, interviewResult service_models.InterviewResult) error
+	DeleteVacancy(ctx context.Context, vacancyID uuid.UUID) error
 }
 
 type LLMClient interface {
@@ -79,6 +80,15 @@ func (s *Service) GetQuestionsByVacancyID(ctx context.Context, vacancyID uuid.UU
 	}
 
 	return questions, nil
+}
+
+func (s *Service) DeleteVacancy(ctx context.Context, vacancyID uuid.UUID) error {
+	err := s.store.DeleteVacancy(ctx, vacancyID)
+	if err != nil {
+		return fmt.Errorf("can't delete vacancy: %w", err)
+	}
+
+	return nil
 }
 
 func (s *Service) GetVacanciesWithQuestions(ctx context.Context) ([]entity.VacancyWithQuestion, error) {

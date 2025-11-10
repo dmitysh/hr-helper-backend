@@ -58,7 +58,11 @@ func (s *Server) initHandlers() {
 	r.Post("/api/v1/answer", s.createAnswer)
 	r.Post("/api/v1/interview/process", s.processInterview)
 	r.Post("/api/v1/vacancy", s.createVacancy)
-	r.Delete("/_private/v1/candidate/{candidate-id}", s.deleteCandidate)
+
+	//r.Put("/api/v1/vacancy", s.updateVacancy)
+
+	r.Delete("/api/v1/vacancy", s.deleteVacancy)
+	r.Delete("/api/_private/v1/candidate/{candidate-id}", s.deleteCandidate)
 
 	r.Get("/api/v1/screening/result/{candidate-id}/{vacancy-id}", s.getScreeningResult)
 	r.Get("/api/v1/meta/{candidate-id}/{vacancy-id}", s.getMeta)
@@ -360,6 +364,26 @@ func (s *Server) getVacancyWithQuestionsByID(w http.ResponseWriter, r *http.Requ
 	_ = json.NewEncoder(w).Encode(entityVacancyWithAnswersToDTO(vacancy))
 }
 
+func (s *Server) deleteVacancy(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	vacancyIDStr := chi.URLParam(r, "vacancy-id")
+	vacancyID, err := uuid.Parse(vacancyIDStr)
+	if err != nil {
+		httpErrorf(w, http.StatusBadRequest, "invalid vacancy id")
+		return
+	}
+
+	err = s.vacancyService.DeleteVacancy(ctx, vacancyID)
+	if err != nil {
+		httpErrorf(w, http.StatusInternalServerError, "can't handle delete: %v", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+}
+
 func (s *Server) getCandidateVacancyInfo(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -465,12 +489,13 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 func entityCandidateToDTO(e entity.Candidate) dto_models.GetCandidateResponse {
 	return dto_models.GetCandidateResponse{
-		ID:         e.ID,
-		TelegramID: e.TelegramID,
-		FullName:   e.FullName,
-		Phone:      e.Phone,
-		City:       e.City,
-		CreatedAt:  e.CreatedAt,
+		ID:               e.ID,
+		TelegramID:       e.TelegramID,
+		TelegramUsername: e.TelegramUsername,
+		FullName:         e.FullName,
+		Phone:            e.Phone,
+		City:             e.City,
+		CreatedAt:        e.CreatedAt,
 	}
 }
 
@@ -552,12 +577,13 @@ func entityCandidateVacancyInfosToDTO(es []entity.CandidateVacancyInfo) []dto_mo
 func entityCandidateVacancyInfoToDTO(e entity.CandidateVacancyInfo) dto_models.GetCandidateVacancyInfoResponse {
 	return dto_models.GetCandidateVacancyInfoResponse{
 		Candidate: dto_models.GetCandidateResponse{
-			ID:         e.Candidate.ID,
-			TelegramID: e.Candidate.TelegramID,
-			FullName:   e.Candidate.FullName,
-			Phone:      e.Candidate.Phone,
-			City:       e.Candidate.City,
-			CreatedAt:  e.Candidate.CreatedAt,
+			ID:               e.Candidate.ID,
+			TelegramID:       e.Candidate.TelegramID,
+			TelegramUsername: e.Candidate.TelegramUsername,
+			FullName:         e.Candidate.FullName,
+			Phone:            e.Candidate.Phone,
+			City:             e.Candidate.City,
+			CreatedAt:        e.Candidate.CreatedAt,
 		},
 		Vacancy: dto_models.GetVacancyResponse{
 			ID:              e.Vacancy.ID,
@@ -573,6 +599,7 @@ func entityCandidateVacancyInfoToDTO(e entity.CandidateVacancyInfo) dto_models.G
 			UpdatedAt:      e.Meta.UpdatedAt,
 		},
 		ResumeScreening: entityResumeScreeningToDTO(e.ResumeScreening),
+		ResumeLink:      e.ResumeLink,
 	}
 }
 

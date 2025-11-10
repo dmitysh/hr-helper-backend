@@ -341,7 +341,8 @@ json_agg(
 ) AS questions
      FROM vacancy v
 LEFT JOIN question q ON q.vacancy_id = v.id
-  WHERE v.id = $1
+  WHERE v.id = $1 
+    AND v.is_archived = false
  GROUP BY v.id, v.title, v.key_requirements, v.created_at
  ORDER BY v.created_at DESC`
 
@@ -363,4 +364,16 @@ LEFT JOIN question q ON q.vacancy_id = v.id
 	}
 
 	return v, nil
+}
+
+func (r *VacancyRepository) DeleteVacancy(ctx context.Context, vacancyID uuid.UUID) error {
+	const q = `DELETE FROM vacancy
+                     WHERE id = $1`
+
+	_, err := r.db.Exec(ctx, q, vacancyID)
+	if err != nil {
+		return fmt.Errorf("can't exec query: %w", err)
+	}
+
+	return nil
 }

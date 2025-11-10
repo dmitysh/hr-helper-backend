@@ -29,16 +29,18 @@ func (r *CandidateRepository) Create(ctx context.Context, candidate dto_models.C
 	const q = `
 		INSERT INTO candidate (
 telegram_id,
+telegram_username,
 full_name,
 phone,
 city
 )
-		VALUES ($1, $2, $3, $4)
+		VALUES ($1, $2, $3, $4, $5)
 	 RETURNING id`
 
 	var id int64
 	err := r.db.QueryRow(ctx, q,
 		candidate.TelegramID,
+		candidate.TelegramUsername,
 		candidate.FullName,
 		candidate.Phone,
 		candidate.City,
@@ -68,6 +70,7 @@ func (r *CandidateRepository) GetByTelegramID(ctx context.Context, telegramID in
 		SELECT 
 id,
 telegram_id,
+telegram_username,
 full_name,
 phone,
 city,
@@ -79,6 +82,7 @@ created_at
 	err := r.db.QueryRow(ctx, q, telegramID).Scan(
 		&candidate.ID,
 		&candidate.TelegramID,
+		&candidate.TelegramUsername,
 		&candidate.FullName,
 		&candidate.Phone,
 		&candidate.City,
@@ -252,7 +256,7 @@ func (r *CandidateRepository) GetCandidateVacancyInfos(ctx context.Context) ([]e
 FROM candidate c
 JOIN candidate_vacancy_meta m ON m.candidate_id = c.id
 JOIN vacancy v ON v.id = m.vacancy_id
-JOIN resume_screening rs ON rs.candidate_id = c.id`
+JOIN resume_screening rs ON rs.candidate_id = c.id  AND rs.vacancy_id = v.id`
 
 	var infos []entity.CandidateVacancyInfo
 	rows, err := r.db.Query(ctx, q)
@@ -306,6 +310,7 @@ func (r *CandidateRepository) GetCandidateVacancyInfo(ctx context.Context, candi
 		SELECT 
     c.id AS candidate_id,
     c.telegram_id,
+    c.telegram_username,
     c.full_name,
     c.phone,
     c.city,
@@ -342,6 +347,7 @@ WHERE c.id = $1 and v.id = $2`
 	err := row.Scan(
 		&info.Candidate.ID,
 		&info.Candidate.TelegramID,
+		&info.Candidate.TelegramUsername,
 		&info.Candidate.FullName,
 		&info.Candidate.Phone,
 		&info.Candidate.City,

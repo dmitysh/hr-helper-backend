@@ -74,10 +74,6 @@ func (s *Service) GetByTelegramID(ctx context.Context, telegramID int64) (entity
 	return s.store.GetByTelegramID(ctx, telegramID)
 }
 
-func (s *Service) GetCandidateVacancyInfos(ctx context.Context) ([]entity.CandidateVacancyInfo, error) {
-	return s.store.GetCandidateVacancyInfos(ctx)
-}
-
 func (s *Service) ScoreCandidateResume(ctx context.Context, req dto_models.ProcessResumeRequest) error {
 	vacancy, err := s.vacancyStore.GetByID(ctx, req.VacancyID)
 	if err != nil {
@@ -152,7 +148,22 @@ func (s *Service) GetMeta(ctx context.Context, candidateID int64, vacancyID uuid
 }
 
 func (s *Service) GetCandidateVacancyInfo(ctx context.Context, candidateID int64, vacancyID uuid.UUID) (entity.CandidateVacancyInfo, error) {
-	return s.store.GetCandidateVacancyInfo(ctx, candidateID, vacancyID)
+	info, err := s.store.GetCandidateVacancyInfo(ctx, candidateID, vacancyID)
+	if err != nil {
+		return entity.CandidateVacancyInfo{}, fmt.Errorf("can't get info: %w", err)
+	}
+
+	resumeLink, err := s.resumeStorage.GetPresignedURL(ctx, candidateID, vacancyID)
+	if err != nil {
+		return entity.CandidateVacancyInfo{}, fmt.Errorf("can't get resume link: %w", err)
+	}
+	info.ResumeLink = resumeLink
+
+	return info, nil
+}
+
+func (s *Service) GetCandidateVacancyInfos(ctx context.Context) ([]entity.CandidateVacancyInfo, error) {
+	return s.store.GetCandidateVacancyInfos(ctx)
 }
 
 func (s *Service) GetCandidateAnswers(ctx context.Context, candidateID int64, vacancyID uuid.UUID) ([]entity.CandidateQuestionAnswer, error) {

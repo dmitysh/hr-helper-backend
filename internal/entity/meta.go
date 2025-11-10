@@ -32,6 +32,7 @@ type CandidateVacancyInfo struct {
 	Meta            Meta
 	ResumeScreening ResumeScreening
 	Questions       []Question
+	ResumeLink      string
 }
 
 type CandidateQuestionAnswer struct {
