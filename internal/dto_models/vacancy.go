@@ -18,6 +18,11 @@ type CreateQuestionRequest struct {
 	TimeLimit int    `json:"time_limit"`
 }
 
+type ArchiveVacancyRequest struct {
+	VacancyID   uuid.UUID `json:"id"`
+	CandidateID int64     `json:"candidate_id"`
+}
+
 type CreateAnswerRequest struct {
 	CandidateID int64  `json:"candidate_id"`
 	QuestionID  int64  `json:"question_id"`

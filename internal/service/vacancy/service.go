@@ -18,6 +18,7 @@ const (
 
 type Storage interface {
 	CreateVacancy(ctx context.Context, vacancy dto_models.CreateVacancyRequest) (uuid.UUID, error)
+	ArchiveVacancy(ctx context.Context, candidateID int64, vacancyID uuid.UUID, isArchived bool) error
 	CreateAnswer(ctx context.Context, answer service_models.ScoredAnswer) (int64, error)
 	GetQuestionByID(ctx context.Context, id int64) (entity.Question, error)
 	GetQuestionsByVacancyID(ctx context.Context, vacancyID uuid.UUID) ([]entity.Question, error)
@@ -46,6 +47,10 @@ func NewService(store Storage, llmClient LLMClient) *Service {
 
 func (s *Service) CreateVacancy(ctx context.Context, vacancy dto_models.CreateVacancyRequest) (uuid.UUID, error) {
 	return s.store.CreateVacancy(ctx, vacancy)
+}
+
+func (s *Service) ArchiveVacancy(ctx context.Context, candidateID int64, vacancyID uuid.UUID) error {
+	return s.store.ArchiveVacancy(ctx, candidateID, vacancyID, true)
 }
 
 func (s *Service) CreateAnswer(ctx context.Context, req dto_models.CreateAnswerRequest) (int64, error) {

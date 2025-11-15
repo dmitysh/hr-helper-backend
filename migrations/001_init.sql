@@ -18,7 +18,6 @@ CREATE TABLE vacancy
     id               UUID PRIMARY KEY,
     title            TEXT,
     key_requirements TEXT[],
-    is_archived      BOOLEAN                  DEFAULT false,
     created_at       TIMESTAMP WITH TIME ZONE default now()
 );
 
@@ -28,6 +27,7 @@ CREATE TABLE candidate_vacancy_meta
     vacancy_id      UUID REFERENCES vacancy (id) ON DELETE CASCADE,
     status          TEXT,
     interview_score SMALLINT,
+    is_archived     BOOLEAN DEFAULT false,
     updated_at      TIMESTAMP WITH TIME ZONE
 );
 

@@ -245,6 +245,7 @@ func (r *CandidateRepository) GetCandidateVacancyInfos(ctx context.Context) ([]e
     m.vacancy_id AS meta_vacancy_id,
     m.interview_score,
     m.status,
+    m.is_archived,
     m.updated_at,
     
     rs.id,
@@ -256,7 +257,7 @@ func (r *CandidateRepository) GetCandidateVacancyInfos(ctx context.Context) ([]e
 FROM candidate c
 JOIN candidate_vacancy_meta m ON m.candidate_id = c.id
 JOIN vacancy v ON v.id = m.vacancy_id
-JOIN resume_screening rs ON rs.candidate_id = c.id  AND rs.vacancy_id = v.id`
+JOIN resume_screening rs ON rs.candidate_id = c.id AND rs.vacancy_id = v.id`
 
 	var infos []entity.CandidateVacancyInfo
 	rows, err := r.db.Query(ctx, q)
@@ -286,6 +287,7 @@ JOIN resume_screening rs ON rs.candidate_id = c.id  AND rs.vacancy_id = v.id`
 			&info.Meta.VacancyID,
 			&info.Meta.InterviewScore,
 			&info.Meta.Status,
+			&info.Meta.IsArchived,
 			&info.Meta.UpdatedAt,
 
 			&info.ResumeScreening.ID,
@@ -325,6 +327,7 @@ func (r *CandidateRepository) GetCandidateVacancyInfo(ctx context.Context, candi
     m.vacancy_id AS meta_vacancy_id,
     m.interview_score,
     m.status,
+    m.is_archived,
     m.updated_at,
     
     rs.id,
@@ -362,6 +365,7 @@ WHERE c.id = $1 and v.id = $2`
 		&info.Meta.VacancyID,
 		&info.Meta.InterviewScore,
 		&info.Meta.Status,
+		&info.Meta.IsArchived,
 		&info.Meta.UpdatedAt,
 
 		&info.ResumeScreening.ID,

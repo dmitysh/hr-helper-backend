@@ -44,4 +44,8 @@ Content-Type: application/json
   "time_taken": 30
 }
 
+### delete vacancy
+DELETE https://kekly.ru/api/v1/vacancy/5365d2f7-7490-40fe-b013-4faeb994764f
+
+
 

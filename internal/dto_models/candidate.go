@@ -39,6 +39,7 @@ type GetMetaResponse struct {
 	VacancyID      uuid.UUID `json:"vacancy_id"`
 	InterviewScore *int      `json:"interview_score"`
 	Status         string    `json:"status"`
+	IsArchived     bool      `json:"is_archived"`
 	UpdatedAt      time.Time `json:"updated_at"`
 }
 

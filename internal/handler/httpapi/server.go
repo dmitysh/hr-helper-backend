@@ -58,10 +58,9 @@ func (s *Server) initHandlers() {
 	r.Post("/api/v1/answer", s.createAnswer)
 	r.Post("/api/v1/interview/process", s.processInterview)
 	r.Post("/api/v1/vacancy", s.createVacancy)
+	r.Post("/api/v1/vacancy/archive", s.archiveVacancy)
 
-	//r.Put("/api/v1/vacancy", s.updateVacancy)
-
-	r.Delete("/api/v1/vacancy", s.deleteVacancy)
+	r.Delete("/api/v1/vacancy/{vacancy-id}", s.deleteVacancy)
 	r.Delete("/api/_private/v1/candidate/{candidate-id}", s.deleteCandidate)
 
 	r.Get("/api/v1/screening/result/{candidate-id}/{vacancy-id}", s.getScreeningResult)
@@ -140,6 +139,26 @@ func (s *Server) createVacancy(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"id": id,
 	})
+}
+
+func (s *Server) archiveVacancy(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var in dto_models.ArchiveVacancyRequest
+	err := json.NewDecoder(r.Body).Decode(&in)
+	if err != nil {
+		httpErrorf(w, http.StatusBadRequest, "invalid JSON: %v", err.Error())
+		return
+	}
+
+	err = s.vacancyService.ArchiveVacancy(ctx, in.CandidateID, in.VacancyID)
+	if err != nil {
+		httpErrorf(w, http.StatusInternalServerError, "can't handle archive: %v", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *Server) createAnswer(w http.ResponseWriter, r *http.Request) {
@@ -529,6 +548,7 @@ func entityMetaToDTO(e entity.Meta) dto_models.GetMetaResponse {
 		VacancyID:      e.VacancyID,
 		InterviewScore: e.InterviewScore,
 		Status:         string(e.Status),
+		IsArchived:     e.IsArchived,
 		UpdatedAt:      e.UpdatedAt,
 	}
 }
@@ -596,6 +616,7 @@ func entityCandidateVacancyInfoToDTO(e entity.CandidateVacancyInfo) dto_models.G
 			VacancyID:      e.Vacancy.ID,
 			InterviewScore: e.Meta.InterviewScore,
 			Status:         string(e.Meta.Status),
+			IsArchived:     e.Meta.IsArchived,
 			UpdatedAt:      e.Meta.UpdatedAt,
 		},
 		ResumeScreening: entityResumeScreeningToDTO(e.ResumeScreening),

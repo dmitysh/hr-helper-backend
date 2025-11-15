@@ -24,6 +24,7 @@ type Meta struct {
 	InterviewScore *int                   `db:"interview_score"`
 	Status         CandidateVacancyStatus `db:"status"`
 	UpdatedAt      time.Time              `db:"updated_at"`
+	IsArchived     bool                   `db:"is_archived"`
 }
 
 type CandidateVacancyInfo struct {

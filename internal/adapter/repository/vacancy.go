@@ -15,7 +15,6 @@ import (
 	"hr-helper/internal/dto_models"
 	"hr-helper/internal/entity"
 	"hr-helper/internal/inerrors"
-	"hr-helper/internal/pkg/houston/loggy"
 	"hr-helper/internal/service_models"
 )
 
@@ -59,9 +58,6 @@ func (r *VacancyRepository) CreateVacancy(ctx context.Context, vacancy dto_model
 		SELECT id FROM vacancy_insert
     `, strings.Join(placeholders, ","))
 
-	loggy.Info(q)
-	loggy.Info(args)
-
 	var id uuid.UUID
 	err := r.db.QueryRow(ctx, q, args...).Scan(&id)
 	if err != nil {
@@ -69,6 +65,21 @@ func (r *VacancyRepository) CreateVacancy(ctx context.Context, vacancy dto_model
 	}
 
 	return id, nil
+}
+
+func (r *VacancyRepository) ArchiveVacancy(ctx context.Context, candidateID int64, vacancyID uuid.UUID, isArchived bool) error {
+	const q = `
+		UPDATE candidate_vacancy_meta SET
+   is_archived = $1
+         WHERE candidate_id = $2
+           AND vacancy_id = $3`
+
+	_, err := r.db.Exec(ctx, q, isArchived, candidateID, vacancyID)
+	if err != nil {
+		return fmt.Errorf("can't exec query: %w", err)
+	}
+
+	return nil
 }
 
 func (r *VacancyRepository) GetByID(ctx context.Context, id uuid.UUID) (entity.Vacancy, error) {
@@ -341,8 +352,7 @@ json_agg(
 ) AS questions
      FROM vacancy v
 LEFT JOIN question q ON q.vacancy_id = v.id
-  WHERE v.id = $1 
-    AND v.is_archived = false
+    WHERE v.id = $1
  GROUP BY v.id, v.title, v.key_requirements, v.created_at
  ORDER BY v.created_at DESC`
 
