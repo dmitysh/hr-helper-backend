@@ -339,8 +339,8 @@ func (r *CandidateRepository) GetCandidateVacancyInfo(ctx context.Context, candi
  FROM candidate c
  JOIN candidate_vacancy_meta m ON m.candidate_id = c.id
  JOIN vacancy v ON v.id = m.vacancy_id
- JOIN resume_screening rs ON rs.candidate_id = c.id
-WHERE c.id = $1 and v.id = $2`
+ JOIN resume_screening rs ON rs.candidate_id = c.id AND rs.vacancy_id = v.id
+WHERE c.id = $1 AND v.id = $2`
 
 	var info entity.CandidateVacancyInfo
 	var keyRequirements []string
