@@ -19,6 +19,7 @@ import (
 	"hr-helper/internal/pkg/houston/dobby"
 	"hr-helper/internal/pkg/houston/loggy"
 	"hr-helper/internal/pkg/houston/secret"
+	"hr-helper/internal/service/auther"
 	"hr-helper/internal/service/candidate"
 	"hr-helper/internal/service/vacancy"
 )
@@ -34,6 +35,8 @@ func NewApp(config Config) *App {
 }
 
 func (a *App) Run(ctx context.Context) {
+	auther.SetSecret(os.Getenv("JWT_SECRET"))
+
 	pgPool, err := dobby.NewPGXPool(ctx,
 		dobby.PGXConfig{
 			Username:      os.Getenv("POSTGRES_USER"),
@@ -76,7 +79,13 @@ func (a *App) Run(ctx context.Context) {
 	vacancyService := vacancy.NewService(vacancyStorage, yandexLLM)
 
 	srv := httpapi.NewServer(
-		config.String("http.addr"),
+		httpapi.ServerConfig{
+			Addr:             config.String("http.addr"),
+			FrontendURL:      config.String("http.frontend_url"),
+			OAuthClientID:    os.Getenv("YANDEX_OAUTH_CLIENT_ID"),
+			OAuthSecret:      os.Getenv("YANDEX_OAUTH_CLIENT_SECRET"),
+			OAuthRedirectURL: config.String("oauth.redirect_url"),
+		},
 		candidateService,
 		vacancyService,
 	)

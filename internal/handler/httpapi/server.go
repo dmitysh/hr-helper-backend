@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -12,26 +13,50 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/google/uuid"
+	"golang.org/x/oauth2"
 
 	"hr-helper/internal/dto_models"
 	"hr-helper/internal/entity"
 	"hr-helper/internal/inerrors"
 	"hr-helper/internal/pkg/houston/loggy"
+	"hr-helper/internal/service/auther"
 	"hr-helper/internal/service/candidate"
 	"hr-helper/internal/service/vacancy"
 )
 
 type Server struct {
-	httpServer       *http.Server
+	httpServer  *http.Server
+	oauthConf   *oauth2.Config
+	frontendURL string
+
 	candidateService *candidate.Service
 	vacancyService   *vacancy.Service
 }
 
-func NewServer(addr string, candidateService *candidate.Service, vacancyService *vacancy.Service) *Server {
+type ServerConfig struct {
+	Addr             string
+	FrontendURL      string
+	OAuthClientID    string
+	OAuthSecret      string
+	OAuthRedirectURL string
+}
+
+func NewServer(cfg ServerConfig, candidateService *candidate.Service, vacancyService *vacancy.Service) *Server {
 	s := &Server{
 		httpServer: &http.Server{
-			Addr: addr,
+			Addr: cfg.Addr,
 		},
+		oauthConf: &oauth2.Config{
+			ClientID:     cfg.OAuthClientID,
+			ClientSecret: cfg.OAuthSecret,
+			RedirectURL:  cfg.OAuthRedirectURL,
+			Endpoint: oauth2.Endpoint{
+				AuthURL:  "https://oauth.yandex.ru/authorize",
+				TokenURL: "https://oauth.yandex.ru/token",
+			},
+			Scopes: []string{"login:email"},
+		},
+		frontendURL:      cfg.FrontendURL,
 		candidateService: candidateService,
 		vacancyService:   vacancyService,
 	}
@@ -73,7 +98,139 @@ func (s *Server) initHandlers() {
 	r.Get("/api/v1/candidate-vacancy-info/{candidate-id}/{vacancy-id}", s.getCandidateVacancyInfo)
 	r.Get("/api/v1/candidate/answers/{candidate-id}/{vacancy-id}", s.getCandidateAnswers)
 
+	r.Get("/api/v1/login", s.login)
+	r.Get("/api/v1/auth", s.auth)
+	r.Get("/api/v1/logout", s.logout)
+
 	s.httpServer.Handler = r
+}
+
+func (s *Server) login(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "jwt_token",
+		Value:    "",
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		MaxAge:   -1,
+	})
+
+	provider := r.URL.Query().Get("provider")
+
+	var url string
+	switch provider {
+	case "yandex":
+		url = s.oauthConf.AuthCodeURL("state-token",
+			oauth2.AccessTypeOffline,
+			oauth2.ApprovalForce,
+			oauth2.SetAuthURLParam("force_confirm", "true"),
+			oauth2.SetAuthURLParam("provider", "yandex"),
+		)
+	case "demo":
+		url = s.frontendURL + "/api/v1/auth?provider=demo"
+	default:
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "unknown provider: %s", provider)
+		return
+	}
+
+	http.Redirect(w, r, url, http.StatusFound)
+}
+
+func (s *Server) auth(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	provider := r.URL.Query().Get("provider")
+	switch provider {
+	case "yandex":
+		s.authYandex(ctx, w, r)
+	case "demo":
+		s.authDemo(ctx, w, r)
+	default:
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "unknown provider: %s", provider)
+		return
+	}
+
+	http.Redirect(w, r, s.frontendURL, http.StatusFound)
+}
+
+func (s *Server) authYandex(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+	code := r.URL.Query().Get("code")
+	token, err := s.oauthConf.Exchange(context.Background(), code)
+	if err != nil {
+		httpErrorf(w, http.StatusInternalServerError, "oauth exchange failed: %v", err)
+		return
+	}
+
+	client := s.oauthConf.Client(ctx, token)
+	resp, err := client.Get("https://login.yandex.ru/info?format=json")
+	if err != nil {
+		httpErrorf(w, http.StatusInternalServerError, "can't get client by token: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		httpErrorf(w, http.StatusInternalServerError, "can't read body: %v", err)
+		return
+	}
+
+	type InfoResponse struct {
+		DefaultEmail string `json:"default_email"`
+	}
+
+	var infoResp InfoResponse
+	err = json.Unmarshal(body, &infoResp)
+	if err != nil {
+		httpErrorf(w, http.StatusInternalServerError, "can't unmarshal body: %v", err)
+		return
+	}
+
+	jwt, err := auther.GenerateJWTWithEmail(infoResp.DefaultEmail)
+	if err != nil {
+		httpErrorf(w, http.StatusInternalServerError, "can't generate jwt: %v", err)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "jwt_token",
+		Value:    jwt,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		MaxAge:   3600,
+	})
+}
+
+func (s *Server) authDemo(_ context.Context, w http.ResponseWriter, _ *http.Request) {
+	jwt, err := auther.GenerateJWTWithEmail("demo@yandex.ru")
+	if err != nil {
+		httpErrorf(w, http.StatusInternalServerError, "can't generate jwt: %v", err)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "jwt_token",
+		Value:    jwt,
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		MaxAge:   3600,
+	})
+}
+func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "jwt_token",
+		Value:    "",
+		HttpOnly: true,
+		Secure:   true,
+		Path:     "/",
+		MaxAge:   -1,
+	})
+
+	http.Redirect(w, r, "/login", http.StatusFound)
 }
 
 func (s *Server) createCandidate(w http.ResponseWriter, r *http.Request) {
