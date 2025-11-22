@@ -7,6 +7,16 @@ Content-Type: application/json
   "vacancy_id": "1e3f7bd0-5230-49bf-8113-9ec4564a6c08"
 }
 
+
+### process resume
+POST http://localhost:8086/api/v1/screening/process
+Content-Type: application/json
+
+{
+  "candidate_id": 444,
+  "vacancy_id": "1e3f7bd0-5230-49bf-8113-9ec4564a6c08"
+}
+
 ### create vacancy
 POST http://localhost:8086/api/v1/vacancy
 Content-Type: application/json

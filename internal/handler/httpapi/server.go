@@ -78,10 +78,14 @@ func (s *Server) initHandlers() {
 	}))
 	r.Use(middleware.Logger)
 
-	r.Post("/api/v1/candidate", s.createCandidate)
-	r.Post("/api/v1/screening/process", s.processResume)
-	r.Post("/api/v1/answer", s.createAnswer)
-	r.Post("/api/v1/interview/process", s.processInterview)
+	r.Post("/api/bot/v1/candidate", s.createCandidate)
+	r.Get("/api/bot/v1/candidates/by-tg-id/{telegram-id}", s.getCandidateByTelegramID)
+	r.Post("/api/bot/v1/screening/process", s.processResume)
+	r.Get("/api/bot/v1/questions/{vacancy-id}", s.getQuestionsByVacancyID)
+	r.Post("/api/bot/v1/answer", s.createAnswer)
+	r.Post("/api/bot/v1/interview/process", s.processInterview)
+	r.Get("/api/bot/v1/meta/{candidate-id}/{vacancy-id}", s.getMeta)
+
 	r.Post("/api/v1/vacancy", s.createVacancy)
 	r.Post("/api/v1/vacancy/archive", s.archiveVacancy)
 
@@ -89,9 +93,6 @@ func (s *Server) initHandlers() {
 	r.Delete("/api/_private/v1/candidate/{candidate-id}", s.deleteCandidate)
 
 	r.Get("/api/v1/screening/result/{candidate-id}/{vacancy-id}", s.getScreeningResult)
-	r.Get("/api/v1/meta/{candidate-id}/{vacancy-id}", s.getMeta)
-	r.Get("/api/v1/candidates/by-tg-id/{telegram-id}", s.getCandidateByTelegramID)
-	r.Get("/api/v1/questions/{vacancy-id}", s.getQuestionsByVacancyID)
 	r.Get("/api/v1/candidate-vacancy-infos", s.getCandidateVacancyInfos)
 	r.Get("/api/v1/vacancies", s.getVacancies)
 	r.Get("/api/v1/vacancy/{vacancy-id}", s.getVacancyWithQuestionsByID)
